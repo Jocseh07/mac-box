@@ -1,0 +1,45 @@
+name: mac-box
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: Minutes to keep the Mac open (max 345)
+        default: "300"
+
+concurrency: mac-box
+
+jobs:
+  box:
+    runs-on: macos-15
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable SSH for the runner user
+        run: |
+          mkdir -p ~/.ssh
+          cat authorized_keys >> ~/.ssh/authorized_keys
+          chmod 700 ~/.ssh
+          chmod 600 ~/.ssh/authorized_keys
+          sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist || sudo systemsetup -setremotelogin on
+          echo "SSH user: $(whoami)"
+
+      - uses: tailscale/github-action@v4.4.0
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          hostname: mac-box
+
+      - name: Show Xcode and simulators
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available iOS
+
+      - name: Stay open
+        env:
+          MINUTES: ${{ inputs.minutes }}
+        run: |
+          minutes="$MINUTES"
+          [ "$minutes" -gt 345 ] && minutes=345
+          echo "Open for $minutes minutes. Cancel the run to close it early."
+          sleep $((minutes * 60))
