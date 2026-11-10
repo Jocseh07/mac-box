@@ -36,10 +36,14 @@ jobs:
           tailscale ip -4
           curl -sSfo /dev/null https://registry.npmjs.org/ && echo "public DNS ok"
 
-      - name: Show Xcode and simulators
+      - name: Prime an iPhone simulator for T3
         run: |
           xcodebuild -version
-          xcrun simctl list devices available iOS
+          udid=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for k in sorted(d, reverse=True) if "iOS-18" in k for x in d[k] if x["name"] == "iPhone 16 Pro"))')
+          echo "Priming iPhone 16 Pro $udid"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid"
+          xcrun simctl shutdown "$udid"
 
       - name: Stay open
         env:
