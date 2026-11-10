@@ -25,10 +25,16 @@ jobs:
           sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist || sudo systemsetup -setremotelogin on
           echo "SSH user: $(whoami)"
 
-      - uses: tailscale/github-action@v4.4.0
-        with:
-          authkey: ${{ secrets.TS_AUTHKEY }}
-          hostname: mac-box
+      - name: Join tailnet without touching system DNS
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+        run: |
+          brew install tailscale
+          sudo nohup "$(brew --prefix)/bin/tailscaled" --state=mem: >/tmp/tailscaled.log 2>&1 &
+          sleep 5
+          sudo tailscale up --authkey="$TS_AUTHKEY" --hostname=mac-box --accept-dns=false --timeout=2m
+          tailscale ip -4
+          curl -sSfo /dev/null https://registry.npmjs.org/ && echo "public DNS ok"
 
       - name: Show Xcode and simulators
         run: |
